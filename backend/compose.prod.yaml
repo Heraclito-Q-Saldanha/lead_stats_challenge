@@ -1,0 +1,57 @@
+services:
+  postgres:
+    image: postgres
+    container_name: postgres
+    shm_size: 128mb
+    networks:
+      - webnet
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: true
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      retries: 20
+      start_period: 10s
+      timeout: 5s
+  backend:
+    image: backend:latest
+    build:
+      dockerfile: ./backend.Dockerfile
+    networks:
+      - webnet
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: true
+    environment:
+      SERVER_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+  caddy:
+    image: caddy:2.9.1-alpine
+    container_name: caddy
+    networks:
+      - webnet
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy:/data/
+      - ./data/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./data/caddy/www:/data/www
+
+volumes:
+  pg_data:
+  caddy:
+
+networks:
+  webnet:
+    name: webnet
+    driver: bridge

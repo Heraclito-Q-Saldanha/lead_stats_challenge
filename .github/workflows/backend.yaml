@@ -1,0 +1,47 @@
+name: backend
+
+on:
+  push:
+    paths:
+      - backend/**
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  SQLX_OFFLINE: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build image
+      run: |
+        cd backend && \
+        docker build -f backend.Dockerfile -t backend:latest . && \
+        docker save backend:latest -o backend.tar && \
+        chmod 777 backend.tar
+
+    - uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_ADDR }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        source: "./backend/compose.prod.yaml,./backend/backend.tar,./backend/data/*"
+        target: "/tmp/"
+        overwrite: true
+
+    - uses: appleboy/ssh-action@v1.2.0
+      with:
+        host: ${{ secrets.SSH_ADDR }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cp -f  /tmp/backend/compose.prod.yaml . && \
+          cp -fr /tmp/backend/data/ . && \
+          docker compose -f compose.prod.yaml down && \
+          docker load -i /tmp/backend/backend.tar && \
+          rm -rf /tmp/backend/ && \
+          docker image prune -f && \
+          docker compose -f compose.prod.yaml up -d

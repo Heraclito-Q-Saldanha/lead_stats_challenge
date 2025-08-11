@@ -1,0 +1,35 @@
+name: frontend
+
+on:
+  push:
+    paths:
+      - frontend/**
+    branches: [ "main" ]
+
+env:
+  VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: Build
+      run: |
+        cd frontend && \
+        npm ci && \
+        npm run build && \
+        mv dist ../www
+
+    - name: Upload Website
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_ADDR }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_KEY }}
+        source: "www/"
+        target: "/home/${{ secrets.SSH_USER }}/data/caddy/"
+        overwrite: true

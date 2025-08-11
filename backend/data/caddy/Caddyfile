@@ -1,0 +1,12 @@
+challenge.smallauncher.com {
+    handle {
+        root * /data/www
+        file_server
+    }
+}
+
+api.challenge.smallauncher.com {
+	handle {
+        reverse_proxy backend:8080
+    }
+}
